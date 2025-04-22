@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "monitor-server-pg"
+version = "0.1.0"
+description = "Monitor de load average e consultas PostgreSQL"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "Equipe de Desenvolvimento", email = "admin@example.com"}
+]
+
+dependencies = [
+    "textual>=0.38.1",
+    "psycopg2-binary>=2.9.5",
+    "psutil>=5.9.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+monitor-pg = "main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
