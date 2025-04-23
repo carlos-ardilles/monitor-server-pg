@@ -116,6 +116,8 @@ class SystemInfoWidget(Static):
 class QueryLogWidget(Static):
     """Widget para exibir logs de consultas salvas"""
     log_files = reactive([])
+    # Contador para garantir IDs de botão únicos
+    _button_counter = 0
 
     def on_mount(self):
         self.update_logs()
@@ -133,8 +135,9 @@ class QueryLogWidget(Static):
 
     def add_log_file(self, filename):
         """Adiciona um novo arquivo de log à lista"""
-        if os.path.basename(filename) not in self.log_files:
-            self.log_files = [os.path.basename(filename)] + self.log_files[:19]
+        basename = os.path.basename(filename)
+        if basename not in self.log_files:
+            self.log_files = [basename] + self.log_files[:19]
 
     def compose(self) -> ComposeResult:
         """Compõe o widget de logs"""
@@ -147,7 +150,10 @@ class QueryLogWidget(Static):
         )
 
     def watch_log_files(self, log_files):
+        """Atualizado quando a lista de logs muda"""
         log_list = self.query_one("#log-list")
+
+        # Limpa completamente a lista de logs existentes
         log_list.remove_children()
 
         empty_msg = self.query_one("#log-list-empty")
@@ -157,12 +163,22 @@ class QueryLogWidget(Static):
 
         empty_msg.display = False
 
-        # Adiciona os arquivos de log à lista
-        for log_file in log_files:
-            file_path = os.path.join("logs", log_file)
+        # Adiciona os arquivos de log à lista com IDs realmente únicos usando timestamp
+        for index, log_file in enumerate(log_files):
             timestamp = " ".join(log_file.replace(
                 "pg_queries_", "").replace(".log", "").split("_"))
-            log_list.mount(Button(f"{timestamp}", id=f"log-{log_file}"))
+
+            # Usa um contador global para garantir IDs únicos mesmo em atualizações simultâneas
+            self._button_counter += 1
+            unique_id = f"log-{index}-{self._button_counter}"
+
+            # Monta o botão com o ID único
+            log_button = Button(f"{timestamp}", id=unique_id)
+            # Adiciona o índice como um atributo para identificação posterior
+            log_button.log_index = index
+
+            # Monta o botão na interface
+            log_list.mount(log_button)
 
 
 class MonitorConfigWidget(Static):
@@ -509,19 +525,41 @@ class MonitorApp(App):
         self.query_one("#start-monitor").disabled = False
         self.query_one("#stop-monitor").disabled = True
 
-    def view_log_file(self, filename):
+    def view_log_file(self, log_id):
         """Visualiza o conteúdo de um arquivo de log"""
-        filepath = os.path.join(os.getcwd(), "logs", filename)
-        if not os.path.exists(filepath):
-            self.notify(
-                f"Arquivo não encontrado: {filename}", severity="error")
-            return
+        try:
+            # O log_id agora é algo como "0-123" (índice-contador)
+            log_id_parts = log_id.split("-")
+            if len(log_id_parts) >= 1:
+                index = int(log_id_parts[0])
+            else:
+                self.notify("Formato de ID de log inválido", severity="error")
+                return
 
-        # Abre o arquivo em um visualizador menos/more dependendo do sistema
-        if os.name == 'posix':
-            os.system(f"less '{filepath}'")
-        else:
-            os.system(f"more \"{filepath}\"")
+            # Obtém o nome do arquivo de log a partir do índice
+            log_files = self.query_one(QueryLogWidget).log_files
+            if index < 0 or index >= len(log_files):
+                self.notify("Índice de log inválido", severity="error")
+                return
+
+            filename = log_files[index]
+
+            filepath = os.path.join(os.getcwd(), "logs", filename)
+            if not os.path.exists(filepath):
+                self.notify(
+                    f"Arquivo não encontrado: {filename}", severity="error")
+                return
+
+            # Abre o arquivo em um visualizador less/more dependendo do sistema
+            if os.name == 'posix':
+                os.system(f"less '{filepath}'")
+            else:
+                os.system(f"more \"{filepath}\"")
+
+        except ValueError as e:
+            self.notify(f"Erro ao abrir log: {str(e)}", severity="error")
+        except Exception as e:
+            self.notify(f"Erro desconhecido: {str(e)}", severity="error")
 
     @work(exclusive=True)
     async def _monitor_system(self):

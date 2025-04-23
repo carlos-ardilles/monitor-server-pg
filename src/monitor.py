@@ -36,7 +36,7 @@ class LoadMonitor:
     def is_above_threshold(self):
         """Verifica se o load average de 1 minuto está acima do limite definido"""
         load_1min, _, _ = self.get_load_average()
-        return load_1min > self.threshold
+        return load_1min >= self.threshold
 
     def check_load_status(self):
         """Verifica o status do load e retorna se houve mudança de estado"""

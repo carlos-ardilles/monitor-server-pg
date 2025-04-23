@@ -69,3 +69,4 @@ logs/*.log
 # Arquivos do sistema
 .DS_Store
 Thumbs.db
+src/ui.py

@@ -48,15 +48,24 @@ class PostgresMonitor:
             cursor = self.conn.cursor()
 
             # Consulta para obter queries ativas no PostgreSQL
+            # temporário.. somente para teste
             query = """
-            SELECT pid, usename, datname, client_addr, 
-                   state, query_start, now() - query_start AS duration, 
+            SELECT pid, usename, datname, client_addr,
+                   state, query_start, now() - query_start AS duration,
                    wait_event_type, wait_event, query
             FROM pg_stat_activity
-            WHERE state != 'idle'
-              AND pid != pg_backend_pid()
             ORDER BY duration DESC;
             """
+
+            # query = """
+            # SELECT pid, usename, datname, client_addr,
+            #        state, query_start, now() - query_start AS duration,
+            #        wait_event_type, wait_event, query
+            # FROM pg_stat_activity
+            # WHERE state != 'idle'
+            #   AND pid != pg_backend_pid()
+            # ORDER BY duration DESC;
+            # """
 
             cursor.execute(query)
             rows = cursor.fetchall()
